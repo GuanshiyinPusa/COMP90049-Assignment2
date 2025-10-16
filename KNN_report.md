@@ -29,7 +29,10 @@ These results indicate that the KNN model provides strong predictive performance
 ---
 
 ## 1. What models retain their value over higher mileage?
-
+![Mileage vs Price by Brand](https://github.com/GuanshiyinPusa/COMP90049-Assignment2/raw/KB/mileage_vs_price_by_brand_v2.png)
+Figure1
+![Brand Value Retention Rate](https://github.com/GuanshiyinPusa/COMP90049-Assignment2/raw/KB/brand_value_retention_rate.png)
+Figure2
 Based on Figure 1, we can observe a clear negative relationship between mileage and car price across all brands — as mileage increases, the price of the vehicle decreases. However, the rate of depreciation varies significantly between brands. For example, while Volkswagen vehicles also show a price decline with increasing mileage, their prices remain consistently higher than brands such as Nissan or Lada at comparable mileage levels. In some mileage ranges, Volkswagen vehicles are priced significantly above other brands, indicating stronger brand value retention.
 
 This observation is further supported by Figure 2, which illustrates the brand value retention rate. A higher retention rate indicates that customers are more willing to pay a higher price for high-mileage and older second-hand cars of that brand. For instance, brands with higher retention rates maintain stronger resale value even as mileage increases.
@@ -39,6 +42,8 @@ Taken together, these two figures suggest that while price depreciation is a uni
 ---
 
 ## 2. What factors have the strongest influence on car price?
+![Price vs Engine HP](https://github.com/GuanshiyinPusa/COMP90049-Assignment2/raw/KB/price_vs_engine_hp.png)
+Figure3
 
 To better understand the relationship between engine horsepower and price, we generated a scatterplot of **Price vs Engine HP** and applied **LOWESS (Locally Weighted Scatterplot Smoothing)** to visualize the overall trend.
 
