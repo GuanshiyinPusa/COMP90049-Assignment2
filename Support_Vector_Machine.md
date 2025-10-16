@@ -1,0 +1,68 @@
+# Support Vector Machine (SVM) for Car Price Prediction
+## Introduction
+Support Vector Machine (SVM) is a gap-based machine learning algorithm that seeks decision functions by maximizing the separation between data points and the model boundary. By combining Support Vector Regression with kernel functions such as radial basis function or polynomial kernel, we can map features into high-dimensional spaces and capture complex nonlinear relationships without requiring manual mapping design.
+
+## Reason
+
+Typically, car datasets combine mixed-type features (brand/model/city, fuel type, transmission) with continuous characteristics (mileage, engine displacement/horsepower, age), exhibiting nonlinear effects (e.g., horsepower increases price but interacts with brand and age). Support Vector Regression excels in this domain for several reasons: firstly, it clearly models nonlinear relationships through kernel functions; secondly, it efficiently handles high-dimensional sparse one-hot encoding; furthermore, its maximized margin objective function exhibits strong robustness to outliers (such as rare luxury vehicles in market data); finally, it performs exceptionally well with small to medium sample sizes, whereas deep learning models may overfit or require vast datasets. Compared to other mainstream models: tree-based models, while powerful, require careful handling of categorical variables and may produce non-smooth price curves; K-NN is prone to the curse of dimensionality after one-hot encoding and lacks a clear global model.
+
+## Method
+
+Given mixed feature types, I used a ColumnTransformer with two sub-pipelines. For numerical columns (car mileage, car engine capacity, car engine hp, car age), I applied median imputation (robust to skew/outliers) followed by standardization (StandardScaler), so that the SVR’s kernel and C/γ penalties operate on comparable scales. For categorical columns (car brand, car model, car city, car fuel, car transmission, car drive, car country), I used most-frequent imputation and one-hot encoding with handle-unknown="ignore" to safely handle previously unseen category values during the testing phase. This design ensures all preprocessing steps are repeatable and fully encapsulated.
+Besides, car prices typically show a right-skewed distribution with errors increasing alongside price levels. Therefore, I wrapped the pipeline as a TransformedTargetRegressor, fitting the model using log1p (car price) as the target variable, then reversing the prediction via the expm1 function. This method stabilizes variance and improves model quality. Compared to fitting directly on raw prices, it often yields better R² values and lower errors on the original scale.
+Eventually, I held out 20% of the data for final testing via train-test-split (random state=42). All preprocessing and model fitting occur inside a scikit-learn pipeline, ensuring the test set remains untouched by any training-time statistics. Model quality is reported with R² (explained variance) and MAE (average absolute error) on this test set.
+Notably, the base estimator is an SVR with an RBF kernel, which is a strong default for nonlinear structure. I systematically tuned C (regularization strength) to balance bias and variance: low C yields smoother fits; high C hugs the data and can overfit. In complementary runs, I explored ε (tube width) to trade off tolerance to small errors & sensitivity to residuals, and γ (RBF kernel width) to control locality of the function: smaller γ produces smoother, global fits, while larger γ fits more local, wiggly patterns. I also compared kernels (linear, polynomial) to verify that RBF’s flexibility materially improved accuracy. This iterative tuning was aimed at maximizing generalization on the test set rather than purely training fit.
+
+## Result
+
+- R²: 0.929
+- MAE: 232218.44
+
+R²=0.929 indicates the model explains 92.9% of the variance in car prices on unseen data—strong evidence it captures the main pricing drivers and their interactions. An MAE of 232k means that, on average, predictions differ from actual prices by about 232 thousand units of currency. For stakeholders, this is the typical absolute deviation we can expect per listing, acknowledging that errors will be smaller for common vehicles and larger for rare, high-end or atypical cars.
+
+## Limitation & Future Improvement
+
+Despite strong accuracy, several risks remain. Overfitting can occur with very large C or γ, especially with high-cardinality one-hot features (car model, car city). To mitigate and further improve, we can inspect residuals by price band to check heteroscedasticity, add conformal prediction for reliable prediction intervals. Or we can add features like listing age, condition scores, seller type, region-level income indices, or seasonality, they are usually also tighten errors.
+Another limitation arises from the reduced dataset size used for training. Due to the computational cost and long training time of the SVM—especially with an RBF kernel and one-hot encoded categorical variables—I only used a sample of 5,000 records rather than the full dataset. While this approach speeds up experimentation and parameter tuning, it introduces a risk of sampling bias: the sample may not perfectly represent the overall data distribution, leading to slightly optimistic or unstable performance metrics. Larger or more diverse subsets could shift the model’s learned boundaries, especially for less common brands.
+To mitigate this issue in subsequent work, weighted sampling may be employed to ensure data balance, thereby making full-dataset training computationally feasible. This approach is expected to enhance the model's generalization capability and provide a more reliable basis for evaluating performance in practical applications.
+
+## Conclusion
+
+In short, the SVR pipeline—with principled preprocessing, a variance-stabilizing target transform, and careful hyperparameter tuning—delivers a high-performing, well-generalizing model for car price analysis, while leaving clear avenues to harden it against overfitting and to improve practical reliability.
+
+# Research Question 1: What models retain their value over a higher milage?
+
+![Top models](./Diagrams/Top%20models.jpg)
+
+The first table, based on SVR regression results, lists vehicle models with the highest residual value rates. The column “pct_price_change_per_10k_km” indicates the estimated percentage price change per 10,000 kilometers driven, controlling for vehicle age. Higher values (greater positive figures) signify that the model's price remains stable or even increases slightly with mileage, reflecting robust durability and strong market recognition. Data reveals that models such as the Lada 2109, Suzuki Grand Vitara, Škoda Yeti, Toyota Caldina, and Mitsubishi Pajero demonstrate the strongest residual values. The predicted prices for these vehicles decline only marginally with increased mileage—some even showing slight increases—reflecting their reputation for reliability and mechanical robustness. Notably, Toyota features prominently across multiple rankings, confirming its widely recognized consistency and resistance to depreciation within the second-hand vehicle market.
+
+![Mileage sensitive models](./Diagrams/Mileage%20sensitive%20models.jpg)
+
+The second table presents the models most sensitive to mileage, meaning those experiencing steep price declines as kilometers accumulate. Here, the pct_price_change_per_10k_km values are negative, indicating the percentage depreciation per additional 10,000 kilometers. Models such as the Land Rover Range Rover, BMW X6 and Kia Carnival exhibit steep depreciation rates (approximately 2% to 6% per 10,000 kilometers). This phenomenon is particularly evident among luxury SUVs and premium brands – where high maintenance costs, complex technical specifications, and consumer expectations for low-mileage vehicles collectively accelerate depreciation. Despite their higher new car prices, the second-hand value of these models diminishes rapidly with mileage, contrasting sharply with the value retention characteristics of Japanese or Eastern European utility vehicles.
+
+![retention vs mileage](./Diagrams/retention%20vs%20mileage.jpg)
+
+The third chart, based on the same SVR results, visually illustrates the relationship between vehicle residual value and mileage through a bar graph. The horizontal axis displays the percentage price change per additional 10,000 kilometers, with bars extending further to the right for models demonstrating stronger residual value. The chart clearly shows the Lada 2109, Suzuki Grand Vitara and Škoda Yeti performing most impressively, followed closely by the Toyota Caldina, Mitsubishi Pajero and Toyota Hiace. These models maintain stable or only gradually declining prices even at high mileage, indicating sustained consumer recognition of their reliable and durable characteristics. This visualization confirms the statistical finding: practical, durable and low-maintenance vehicles – particularly those from Toyota and other Japanese manufacturers – exhibit the strongest resistance to mileage-driven depreciation, making them the preferred choice for long-term ownership or resale.
+
+# Research Question 2: How does the brand and model affects the price?
+
+![brand vs price](./Diagrams/brand%20vs%20price.jpg)
+
+The first chart illustrates that brand reputation is a key determinant of vehicle pricing. Luxury and performance-leading brands such as Rolls-Royce, Ferrari and Lamborghini dominate the premium segment, commanding average prices ranging from approximately ¥40 million to ¥70 million. These brands are globally recognized for their scarcity, masterful craftsmanship and status symbolism, with market value far exceeding mere functional specifications. By contrast, mid-tier and emerging manufacturers like Genesis, Porsche, Navigator, and NIO occupy lower price segments, highlighting how brand prestige and perceived quality exert greater influence on pricing than technical attributes.
+Beyond prestige, the charts reveal a segmented market structure: ultra-luxury brands constitute a niche, high-value segment, while the majority of brands cluster in price brackets significantly below this level. This substantial price differential indicates consumers frequently pay a brand premium – an additional cost derived from reputation, heritage, and scarcity rather than performance metrics. Practically speaking, owning a Rolls-Royce or Ferrari reflects both social status and vehicle capability, making brand image one of the automotive industry's most potent pricing drivers.
+
+![model vs price](./Diagrams/model%20vs%20price.jpg)
+
+The second chart reveals how different models within a brand further influence price levels. Even within luxury brands, flagship models like the Rolls-Royce Phantom and Ferrari SF90 Stradale command significantly higher prices. These vehicles embody the pinnacle of a brand's engineering and design, often featuring limited production and customization services. Performance-oriented models such as the Lamborghini Urus and Aventador also command premium prices, combining sports car power with SUV practicality. This pattern indicates that a brand's internal model hierarchy directly influences pricing – the more iconic or high-performance the model, the higher its market value.
+Furthermore, the inclusion of premium SUVs and hybrid models (such as the BMW XM, Lexus LM350h, and Bentley Bentayga) highlights the expanding definition of luxury: comfort, technology, and innovation now co-create value alongside performance. Emerging models like the BYD Yangwang U8 demonstrate that new brands, even without traditional prestige, can command premium pricing through advanced technology and electric performance. Overall, this chart confirms that brand identity and model positioning jointly shape vehicle pricing—the brand establishes the upper limit, while specific models determine each vehicle's precise positioning within that range.
+
+# Research Question 3: What factors affect the price more than others?
+
+![Factor importance rate](./Diagrams/Factor%20importance%20rate.png)
+
+This table demonstrates that among all examined characteristics, the car brand absolutely dominates the influence on vehicle pricing, accounting for over 91% of the importance. This means brand image has a huge impact—luxury or well-known brands can command significantly higher prices than lesser-known brands. By contrast, variables such as car mileage, engine capacity and car age contribute marginally to the model's predictions. This indicates that while physical exhaustion and mechanical specifications are important, they are secondary to brand perception when determining value.
+Engine horsepower contributes a mere 0.23%, indicating that raw horsepower figures exert almost no independent influence when brand and other factors are present. Overall, this table highlights a pricing paradigm driven primarily by brand positioning and reputation building, rather than purely technical specifications.
+
+![Factor importance rate chart](./Diagrams/Factor%20importance%20rate%20chart.png)
+
+This bar chart visually reinforces the conclusion, with the car brand bar occupying nearly the entire chart area, far exceeding other variables. The visualization also reveals a high concentration of importance among the remaining variables: while they do influence price, none come close to matching the brand's impact. The chart effectively conveys the significant weight consumers and the market place on brand image and prestige, establishing it as the sole key factor determining vehicle pricing.
